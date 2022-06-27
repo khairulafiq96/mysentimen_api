@@ -50,8 +50,23 @@ def leaderboard():
         print("Excecuting Query")
         cursor.execute(postgreSQL_select_Query)
         response = cursor.fetchall()
+
+        finalResp = {}
+
+        for row in response:
+
+            finalResp[row[0]]={}
+            finalResp[row[0]]['name'] = row[1]
+            finalResp[row[0]]['category'] = row[2]
+            finalResp[row[0]]['position'] = row[3]
+            finalResp[row[0]]['party'] = row[4]
+            finalResp[row[0]]['imgpath'] = row[5]
+            finalResp[row[0]]['sentimen'] = row[5]
+
+            #print (finalResp)
+            
         
-        return json.dumps(response)
+        return json.dumps(finalResp)
 
     except(e):
         return e
