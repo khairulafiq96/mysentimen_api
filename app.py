@@ -1,7 +1,6 @@
 from urllib import response
 from flask import Flask, request
 import json
-import flask
 import psycopg2
 import calendar
 
@@ -19,13 +18,13 @@ def convertUTC(dt):
 
 @app.after_request
 def handlerCORS(response):
-    if(request.method == 'GET' or request.method == 'OPTIONS'):
+    if(request.method == 'GET' or request.method == 'OPTIONS' or request.method == 'POST'):
         print("OK")
         #response = flask.Response()
         response.headers["Status Code"] = "200 OK"
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Content-Type"] = "application/json"
-        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        response.headers["Access-Control-Allow-Headers"] = "*"
         response.headers["Access-Control-Allow-Methods"] = "*"     
         response.headers["Access-Control-Allow-Origin"] = "*"
 
@@ -35,36 +34,50 @@ def handlerCORS(response):
 def hello():
     return 'Hello World'
 
-@app.route('/conn')
-def initializeConn():
-    try:
-        print("Initializing connection")
-        connection = psycopg2.connect("dbname=postgres user=postgres password=admin")
-        cursor = connection.cursor()
-        postgreSQL_select_Query = "select * from mysentimen.politicians"
-        cursor.execute(postgreSQL_select_Query)
-        
+@app.route('/verifyUserDB', methods=['GET', 'POST'])
+def func_verifyUserDB():
+    try :
+        connection, cursor  = initilizeConnection()
+        data = request.get_json()
+        print(data)
+        cursor.execute("""select * from mysentimen.users where id = '%s' """ % data['id'])
         response = cursor.fetchall()
+        #print(type(response))
 
+        if response:
+            print("User account has been created")
+        else:
+            print("Creating new account")
+            cursor.execute("insert into mysentimen.users(id, name, email) values ('%s', '%s', '%s')"%(data['id'], data['name'], data['email']))
+            connection.commit()
 
+            #return json.dumps("New User account has been created in the DB")
 
-        return json.dumps(response)
-
-    except(e):
+        return json.dumps({'mysentimendb' :  'true'})
+        
+    except Exception as e:
         return e
+    
     finally:
         if connection:
             cursor.close()
             connection.close()
-            print("PostgreSQL connection is closed")
+            print("Commection is closed")
 
-
-@app.route('/liveVotes', methods=['GET'])
+@app.route('/liveVotes', methods=['GET', 'POST'])
 def liveComment():
     try :
        
         connection, cursor  = initilizeConnection()
-        data = request.get_json()
+        #get data from body
+        #data = request.get_json()
+
+        #get all headers
+        data = request.headers
+
+        print("Politicians ID")
+        #print(data['politicianid'])
+        print(data)
         cursor.execute("""select * from mysentimen.votes where politicianid = '%s' """ % data['politicianid'])
         response = cursor.fetchall()
 
@@ -77,6 +90,7 @@ def liveComment():
             finalResp[row[0]]['timestamp'] = convertUTC(row[2])
             finalResp[row[0]]['politicianid'] = row[3]
             finalResp[row[0]]['userid'] = row[4]
+            finalResp[row[0]]['sentimen'] = row[5]
 
             #print (finalResp)
             
@@ -92,39 +106,6 @@ def liveComment():
             connection.close()
             print("Commection is closed")
 
-
-@app.route('/liveVotes2')
-def liveComment2():
-    try :
-        connection, cursor  = initilizeConnection()
-        postgreSQL_select_Query = "select * from mysentimen.votes"
-        print("Excecuting Query")
-        cursor.execute(postgreSQL_select_Query)
-        response = cursor.fetchall()
-
-        finalResp = {}
-
-        for row in response:
-
-            finalResp[row[0]]={}
-            finalResp[row[0]]['comments'] = row[1]
-            finalResp[row[0]]['timestamp'] = convertUTC(row[2])
-            finalResp[row[0]]['politicianid'] = row[3]
-            finalResp[row[0]]['userid'] = row[4]
-
-            #print (finalResp)
-            
-        
-        return json.dumps(finalResp)
-
-    except Exception as e:
-        return e
-    
-    finally:
-        if connection:
-            cursor.close()
-            connection.close()
-            print("Commection is closed")
 
 
 @app.route('/getLeaderboard')

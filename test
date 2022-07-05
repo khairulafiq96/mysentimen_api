@@ -9,3 +9,61 @@
       ]
     )
     return ''
+
+
+
+@app.route('/verifyUserDB', methods=['GET', 'POST'])
+def verifyUserDB():
+    try :
+        connection, cursor  = initilizeConnection()
+        data = request.get_json()
+        print(data)
+        cursor.execute("""select * from mysentimen.users where id = '%s' """ % data['id'])
+        response = cursor.fetchall()
+
+        if response is not None:
+            return "User account has been created"
+        else:
+            cursor.execute("""INSERT INTO mysentimen.users VALUES ('%a', '%b', '%c')""" % data['id'], data['name'], data['email'])
+            return "New User account has been created in the DB"
+
+        
+    except Exception as e:
+        return e
+    
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Commection is closed")
+
+
+
+@app.route('/verifyUserDB', methods=['GET', 'POST'])
+def verifyUserDB():
+    try :
+        connection, cursor  = initilizeConnection()
+        data = request.get_json()
+        print(data)
+        cursor.execute("""select * from mysentimen.users where id = '%s' """ % data['id'])
+        response = cursor.fetchall()
+        print(type(response))
+        
+        if response:
+            return 'User account has been created'
+        else:
+            print("Creating new account")
+            #cursor.execute("insert into mysentimen.users(id,name,email) values ('%s', '%s', '%s')"%(data['id'], data['name'], data['email']))
+            #connection.commit()
+            #return json.dumps("New User account has been created in the DB")
+
+        return 'Completed verify User DB'
+        
+    except Exception as e:
+        return e
+    
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Commection is closed")
