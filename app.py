@@ -3,12 +3,15 @@ from flask import Flask, request
 import json
 import psycopg2
 import calendar
+import os
 
 app = Flask(__name__)
 
+DATABASE_URL = os.environ['DATABASE_URL']
+
 def initilizeConnection():
     print("Initializing connection")
-    connection = psycopg2.connect("dbname=postgres user=postgres password=admin")
+    connection = psycopg2.connect(DATABASE_URL, sslmode='require')
     cursor = connection.cursor()
     return connection, cursor
 
