@@ -24,7 +24,7 @@ def convertSentimen(sentimen):
     'print(type(sentimen))'
     return score
 
-@app.before_request
+@app.after_request
 def handlerCORS(response):
     if(request.method == 'GET' or request.method == 'OPTIONS' or request.method == 'POST'):
         print("OK")
@@ -48,7 +48,7 @@ def func_verifyUserDB():
         connection, cursor  = initilizeConnection()
         data = request.get_json()
         #print(data)
-        cursor.execute("""select * from mysentimen.users where id = '%s' """ % data['id'])
+        cursor.execute("""select * from public.users where id = '%s' """ % data['id'])
         response = cursor.fetchall()
         #print(type(response))
 
@@ -56,7 +56,7 @@ def func_verifyUserDB():
             print("User account has been created")
         else:
             print("Creating new account")
-            cursor.execute("insert into mysentimen.users(id, name, email) values ('%s', '%s', '%s')"%(data['id'], data['name'], data['email']))
+            cursor.execute("insert into public.users(id, name, email) values ('%s', '%s', '%s')"%(data['id'], data['name'], data['email']))
             connection.commit()
 
             #return json.dumps("New User account has been created in the DB")
@@ -86,7 +86,7 @@ def liveComment():
         #print("Politicians ID")
         #print(data['politicianid'])
         #print(data)
-        cursor.execute("""select * from mysentimen.votes where politicianid = '%s' order by timestamp desc""" % data['politicianid'])
+        cursor.execute("""select * from public.votes where politicianid = '%s' order by timestamp desc""" % data['politicianid'])
         response = cursor.fetchall()
 
         finalResp = {}
@@ -121,10 +121,10 @@ def func_postVotes():
         data = request.get_json()
         #print(data)
         #print("insert into mysentimen.votes(comments, politicianid, userid, sentimen) values ('%s', '%s', '%s', '%s')"%(data['comments'], data['politicianid'], data['userid'], data['sentimen']))
-        cursor.execute("insert into mysentimen.votes(comments, politicianid, userid, sentimen) values ('%s', '%s', '%s', %s)"%(data['comments'], data['politicianid'], data['userid'], data['sentimen']))
+        cursor.execute("insert into public.votes(comments, politicianid, userid, sentimen) values ('%s', '%s', '%s', %s)"%(data['comments'], data['politicianid'], data['userid'], data['sentimen']))
         connection.commit()
 
-        cursor.execute("select * from mysentimen.votes where comments = '%s' and userid = '%s' and politicianid= '%s'"%(data['comments'],data['userid'],data['politicianid']) )
+        cursor.execute("select * from public.votes where comments = '%s' and userid = '%s' and politicianid= '%s'"%(data['comments'],data['userid'],data['politicianid']) )
         #print("select * from mysentimen.votes where comments = '%s' and userid = '%s' and politicianid= '%s'"%(data['comments'],data['userid'],data['politicianid']))
         response = cursor.fetchall()
 
@@ -158,7 +158,7 @@ def func_postVotes():
 def leaderboard():
     try :
         connection, cursor  = initilizeConnection()
-        postgreSQL_select_Query = "select * from mysentimen.politicians ORDER BY sentimen DESC"
+        postgreSQL_select_Query = "select * from public.politicians ORDER BY sentimen DESC"
         print("Excecuting Query")
         cursor.execute(postgreSQL_select_Query)
         response = cursor.fetchall()
@@ -198,7 +198,7 @@ def leaderboard():
 def func_leaderboardDetails():
     try :
         connection, cursor  = initilizeConnection()
-        postgreSQL_select_Query = "select * from mysentimen.politicians"
+        postgreSQL_select_Query = "select * from public.politicians"
         print("Excecuting Query")
         cursor.execute(postgreSQL_select_Query)
         response = cursor.fetchall()
@@ -239,11 +239,11 @@ def func_calcPoliticianScorebyDay():
         data = request.get_json()
         #print(data['politicianid'])
         cursor.execute("""SELECT
-                            (((SELECT count(*) from mysentimen.votes WHERE 
+                            (((SELECT count(*) from public.votes WHERE 
                                     sentimen = true AND timestamp >= NOW() - '1 day'::INTERVAL AND politicianid = '%s')*1.00)-
-                               (SELECT count(*) from mysentimen.votes WHERE 
+                               (SELECT count(*) from public.votes WHERE 
                                     sentimen = false AND timestamp >= NOW() - '1 day'::INTERVAL AND politicianid = '%s')) / 
-                            (NULLIF((SELECT count(*) from mysentimen.votes WHERE timestamp >= NOW() - '1 hour'::INTERVAL AND politicianid = '%s'), 0)) 
+                            (NULLIF((SELECT count(*) from public.votes WHERE timestamp >= NOW() - '1 hour'::INTERVAL AND politicianid = '%s'), 0)) 
                                 as Sentimen """%(data['politicianid'], data['politicianid'],data['politicianid']))
         response = cursor.fetchall()
 
@@ -282,11 +282,11 @@ def func_calcPoliticianDetail():
         data = request.get_json()
         #print(data['politicianid'])
         cursor.execute("""SELECT
-                            (((SELECT count(*) from mysentimen.votes WHERE 
+                            (((SELECT count(*) from public.votes WHERE 
                                     sentimen = true AND politicianid = '%s')*1.00)-
-                               (SELECT count(*) from mysentimen.votes WHERE 
+                               (SELECT count(*) from public.votes WHERE 
                                     sentimen = false AND politicianid = '%s')) / 
-                            (NULLIF((SELECT count(*) from mysentimen.votes WHERE politicianid = '%s'), 0)) 
+                            (NULLIF((SELECT count(*) from public.votes WHERE politicianid = '%s'), 0)) 
                                 as Sentimen """%(data['politicianid'], data['politicianid'],data['politicianid']))
         response = cursor.fetchall()
 
