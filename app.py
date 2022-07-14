@@ -24,7 +24,7 @@ def convertSentimen(sentimen):
     'print(type(sentimen))'
     return score
 
-@app.after_request
+@app.before_request
 def handlerCORS(response):
     if(request.method == 'GET' or request.method == 'OPTIONS' or request.method == 'POST'):
         print("OK")
