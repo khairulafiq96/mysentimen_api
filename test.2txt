@@ -1,0 +1,33 @@
+CREATE or REPLACE function politicianScore()
+	returns trigger
+	LANGUAGE PLPGSQL
+as $$
+
+declare
+	score numeric;
+begin
+	SELECT
+	(((SELECT count(*) from mysentimen.votes WHERE 
+	   sentimen = true AND politicianid = NEW.politicianid)*1.00)-
+	 (SELECT count(*) from mysentimen.votes WHERE 
+	  sentimen = false AND politicianid = NEW.politicianid)) / 
+	 (SELECT count(*) from mysentimen.votes) INTO score;
+	 'NEW.sentimen := score;'
+	 
+	 UPDATE mysentimen.politicians
+	 SET sentimen = score WHERE mysentimen.politicians.id = NEW.politicianid;
+	 
+
+	 return NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS set_politicianScore on mysentimen.votes;
+
+CREATE TRIGGER set_politicianScore
+	AFTER INSERT
+	ON mysentimen.votes
+	FOR EACH ROW
+EXECUTE PROCEDURE politicianScore();
+
+	 

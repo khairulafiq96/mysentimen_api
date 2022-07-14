@@ -16,6 +16,11 @@ def initilizeConnection():
 def convertUTC(dt):
     return calendar.timegm(dt.utctimetuple())
 
+def convertSentimen(sentimen):
+    score = round((float(sentimen) *100), 3 )
+    'print(type(sentimen))'
+    return score
+
 @app.after_request
 def handlerCORS(response):
     if(request.method == 'GET' or request.method == 'OPTIONS' or request.method == 'POST'):
@@ -39,7 +44,7 @@ def func_verifyUserDB():
     try :
         connection, cursor  = initilizeConnection()
         data = request.get_json()
-        print(data)
+        #print(data)
         cursor.execute("""select * from mysentimen.users where id = '%s' """ % data['id'])
         response = cursor.fetchall()
         #print(type(response))
@@ -75,10 +80,10 @@ def liveComment():
         #get all headers
         data = request.headers
 
-        print("Politicians ID")
+        #print("Politicians ID")
         #print(data['politicianid'])
-        print(data)
-        cursor.execute("""select * from mysentimen.votes where politicianid = '%s' """ % data['politicianid'])
+        #print(data)
+        cursor.execute("""select * from mysentimen.votes where politicianid = '%s' order by timestamp desc""" % data['politicianid'])
         response = cursor.fetchall()
 
         finalResp = {}
@@ -106,10 +111,88 @@ def liveComment():
             connection.close()
             print("Commection is closed")
 
+@app.route('/postVotes', methods=['POST'])
+def func_postVotes():
+    try :
+        connection, cursor  = initilizeConnection()
+        data = request.get_json()
+        #print(data)
+        #print("insert into mysentimen.votes(comments, politicianid, userid, sentimen) values ('%s', '%s', '%s', '%s')"%(data['comments'], data['politicianid'], data['userid'], data['sentimen']))
+        cursor.execute("insert into mysentimen.votes(comments, politicianid, userid, sentimen) values ('%s', '%s', '%s', %s)"%(data['comments'], data['politicianid'], data['userid'], data['sentimen']))
+        connection.commit()
+
+        cursor.execute("select * from mysentimen.votes where comments = '%s' and userid = '%s' and politicianid= '%s'"%(data['comments'],data['userid'],data['politicianid']) )
+        #print("select * from mysentimen.votes where comments = '%s' and userid = '%s' and politicianid= '%s'"%(data['comments'],data['userid'],data['politicianid']))
+        response = cursor.fetchall()
+
+        finalResp = {}
+        for row in response:
+
+            finalResp[row[0]]={}
+            finalResp[row[0]]['comments'] = row[1]
+            finalResp[row[0]]['timestamp'] = convertUTC(row[2])
+            finalResp[row[0]]['politicianid'] = row[3]
+            finalResp[row[0]]['userid'] = row[4]
+            finalResp[row[0]]['sentimen'] = row[5]
+
+            #print (finalResp)
+            
+        
+        return json.dumps(finalResp)
+        
+    except Exception as e:
+        return e
+    
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Commection is closed")
+
 
 
 @app.route('/getLeaderboard')
 def leaderboard():
+    try :
+        connection, cursor  = initilizeConnection()
+        postgreSQL_select_Query = "select * from mysentimen.politicians ORDER BY sentimen DESC"
+        print("Excecuting Query")
+        cursor.execute(postgreSQL_select_Query)
+        response = cursor.fetchall()
+
+        finalResp = {}
+        rank=0
+
+        for row in response:
+
+            rank += 1
+
+            finalResp[row[0]]={}
+            finalResp[row[0]]['rank'] = rank
+            finalResp[row[0]]['name'] = row[1]
+            finalResp[row[0]]['category'] = row[2]
+            finalResp[row[0]]['position'] = row[3]
+            finalResp[row[0]]['party'] = row[4]
+            finalResp[row[0]]['imgpath'] = row[5]
+            finalResp[row[0]]['sentimen'] = convertSentimen(row[6])
+
+            #print (finalResp)
+            
+        
+        return json.dumps(finalResp)
+
+    except Exception as e:
+        return e
+    
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Commection is closed")
+
+
+@app.route('/getLeaderboardDetails')
+def func_leaderboardDetails():
     try :
         connection, cursor  = initilizeConnection()
         postgreSQL_select_Query = "select * from mysentimen.politicians"
@@ -127,13 +210,101 @@ def leaderboard():
             finalResp[row[0]]['position'] = row[3]
             finalResp[row[0]]['party'] = row[4]
             finalResp[row[0]]['imgpath'] = row[5]
-            finalResp[row[0]]['sentimen'] = row[5]
+            finalResp[row[0]]['sentimen'] = row[6]
 
             #print (finalResp)
             
         
         return json.dumps(finalResp)
 
+    except Exception as e:
+        return e
+    
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Commection is closed")
+
+
+
+
+@app.route('/politicianScorebyDay', methods=['GET', 'POST'])
+def func_calcPoliticianScorebyDay():
+    try :
+        connection, cursor  = initilizeConnection()
+        data = request.get_json()
+        #print(data['politicianid'])
+        cursor.execute("""SELECT
+                            (((SELECT count(*) from mysentimen.votes WHERE 
+                                    sentimen = true AND timestamp >= NOW() - '1 day'::INTERVAL AND politicianid = '%s')*1.00)-
+                               (SELECT count(*) from mysentimen.votes WHERE 
+                                    sentimen = false AND timestamp >= NOW() - '1 day'::INTERVAL AND politicianid = '%s')) / 
+                            (NULLIF((SELECT count(*) from mysentimen.votes WHERE timestamp >= NOW() - '1 hour'::INTERVAL AND politicianid = '%s'), 0)) 
+                                as Sentimen """%(data['politicianid'], data['politicianid'],data['politicianid']))
+        response = cursor.fetchall()
+
+        finalResp = {}
+
+        for row in response:
+            #print(row[0])
+            #Checking if the SQL server return (None,)
+            if(row[0]):
+                score = round((row[0] *100), 3 )
+                finalResp[data['politicianid']]={}
+                finalResp[data['politicianid']]['sentimen'] = str(score)
+            else :
+                finalResp[data['politicianid']]={}
+                finalResp[data['politicianid']]['sentimen'] = 'null'
+                
+        
+        #print(finalResp)
+
+        return json.dumps(finalResp)
+        
+    except Exception as e:
+        return e
+    
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Commection is closed")
+
+
+@app.route('/politicianUpdateSentimen', methods=['GET', 'POST'])
+def func_calcPoliticianDetail():
+    try :
+        connection, cursor  = initilizeConnection()
+        data = request.get_json()
+        #print(data['politicianid'])
+        cursor.execute("""SELECT
+                            (((SELECT count(*) from mysentimen.votes WHERE 
+                                    sentimen = true AND politicianid = '%s')*1.00)-
+                               (SELECT count(*) from mysentimen.votes WHERE 
+                                    sentimen = false AND politicianid = '%s')) / 
+                            (NULLIF((SELECT count(*) from mysentimen.votes WHERE politicianid = '%s'), 0)) 
+                                as Sentimen """%(data['politicianid'], data['politicianid'],data['politicianid']))
+        response = cursor.fetchall()
+
+        finalResp = {}
+
+        for row in response:
+            #print(row[0])
+            #Checking if the SQL server return (None,)
+            if(row[0]):
+                score = round((row[0] *100), 3 )
+                finalResp[data['politicianid']]={}
+                finalResp[data['politicianid']]['sentimen'] = str(score)
+            else :
+                finalResp[data['politicianid']]={}
+                finalResp[data['politicianid']]['sentimen'] = 'null'
+                
+        
+        print(finalResp)
+
+        return json.dumps(finalResp)
+        
     except Exception as e:
         return e
     

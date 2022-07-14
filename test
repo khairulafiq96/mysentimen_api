@@ -67,3 +67,93 @@ def verifyUserDB():
             cursor.close()
             connection.close()
             print("Commection is closed")
+
+
+SELECT  *
+FROM    mysentimen.votes
+WHERE   timestamp >= NOW() - '1 day'::INTERVAL
+
+SELECT COUNT(*) cnt, 
+    to_timestamp(floor((extract('epoch' from timestamp) / 300 )) * 300) 
+    AT TIME ZONE 'UTC' as interval_alias
+    FROM mysentimen.votes GROUP BY interval_alias
+	
+	
+SELECT series.minute as interval,  coalesce(cnt.amnt,0) as count from 
+       (
+       SELECT count(*) amnt,
+       to_timestamp(floor((extract('epoch' from timestamp) / 300 )) * 300)
+       AT TIME ZONE 'UTC' as interval_alias
+       from mysentimen.votes  group by interval_alias
+       ) cnt
+    
+    RIGHT JOIN 
+       (    
+       SELECT generate_series(min(date_trunc('hour',timestamp)),
+       max(date_trunc('minute',timestamp)),'5m') as minute from mysentimen.votes 
+       ) series
+  on series.minute = cnt.interval_alias
+
+
+
+
+
+
+
+  SELECT  *
+FROM    mysentimen.votes
+WHERE   timestamp >= NOW() - '2 day'::INTERVAL
+AND 	politicianid = 'f29e9055-bb54-4567-b4cf-ea649c298c0a'
+
+SELECT COUNT(*) truecnt, 
+    to_timestamp(floor((extract('epoch' from timestamp) / 300 )) * 300) 
+    AT TIME ZONE 'UTC' as interval_alias
+    FROM mysentimen.votes where sentimen=true and politicianid='f29e9055-bb54-4567-b4cf-ea649c298c0a' GROUP BY interval_alias
+
+SELECT  *
+FROM    mysentimen.votes
+WHERE   timestamp >= NOW() - '1 day'::INTERVAL
+
+SELECT COUNT(*) cnt, 
+    to_timestamp(floor((extract('epoch' from timestamp) / 60 )) * 60) 
+    AT TIME ZONE 'UTC' as interval_alias,
+    FROM mysentimen.votes WHERE timestamp >= NOW() - '3 day'::INTERVAL GROUP BY interval_alias
+	
+	
+SELECT series.minute as interval,  coalesce(cnt.amnt,0) as count from 
+       (
+       SELECT count(*) amnt,
+       to_timestamp(floor((extract('epoch' from timestamp) / 60 )) * 60)
+       AT TIME ZONE 'UTC' as interval_alias
+       from mysentimen.votes  group by interval_alias
+       ) cnt
+    
+    RIGHT JOIN 
+       (    
+       SELECT generate_series(min(date_trunc('hour',timestamp)),
+       max(date_trunc('minute',timestamp)),'5m') as minute from mysentimen.votes 
+       ) series
+  on series.minute = cnt.interval_alias
+
+
+
+SELECT  COUNT(*) AS trueCount
+FROM    mysentimen.votes
+WHERE   timestamp >= NOW() - '1 hour'::INTERVAL
+AND politicianid = '1d0445a8-5672-4314-a21f-00dd158b785d'
+AND sentimen = true
+
+SELECT  COUNT(*)
+FROM    mysentimen.votes
+WHERE   timestamp >= NOW() - '1 hour'::INTERVAL
+AND politicianid = '1d0445a8-5672-4314-a21f-00dd158b785d'
+AND sentimen = false
+
+
+//FINAL SCORE
+SELECT
+	(((SELECT count(*) from mysentimen.votes WHERE 
+	   sentimen = true AND timestamp >= NOW() - '1 hour'::INTERVAL AND politicianid = 'f29e9055-bb54-4567-b4cf-ea649c298c0a')*1.00)-
+	 (SELECT count(*) from mysentimen.votes WHERE 
+	  sentimen = false AND timestamp >= NOW() - '1 hour'::INTERVAL AND politicianid = 'f29e9055-bb54-4567-b4cf-ea649c298c0a')) / 
+	 (SELECT count(*) from mysentimen.votes) as Sentimen
