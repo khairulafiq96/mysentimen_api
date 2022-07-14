@@ -1,3 +1,5 @@
+//Postgres SQL Trigger
+
 CREATE or REPLACE function politicianScore()
 	returns trigger
 	LANGUAGE PLPGSQL
@@ -5,29 +7,26 @@ as $$
 
 declare
 	score numeric;
+
 begin
 	SELECT
-	(((SELECT count(*) from mysentimen.votes WHERE 
-	   sentimen = true AND politicianid = NEW.politicianid)*1.00)-
-	 (SELECT count(*) from mysentimen.votes WHERE 
-	  sentimen = false AND politicianid = NEW.politicianid)) / 
-	 (SELECT count(*) from mysentimen.votes) INTO score;
-	 'NEW.sentimen := score;'
-	 
-	 UPDATE mysentimen.politicians
-	 SET sentimen = score WHERE mysentimen.politicians.id = NEW.politicianid;
-	 
+		(((SELECT count(*) from public.votes WHERE
+			sentimen = true AND politicianid = NEW.politicianid)*1.00-
+		(SELECT count(*) from public.votes WHERE
+			sentimen = false AND politicianid = NEW.politicianid)) /
+		(NULLIF((SELECT count(*) from public.votes WHERE politicianid = NEW.politicianid), 0))) as sentimen INTO score;
+	
+	UPDATE public.politicians
+	SET sentimen = score WHERE public.politicians.id = NEW.politicianid;
 
-	 return NEW;
+	return NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS set_politicianScore on mysentimen.votes;
+DROP TRIGGER IF EXISTS set_politicianScore on public.votes;
 
 CREATE TRIGGER set_politicianScore
 	AFTER INSERT
-	ON mysentimen.votes
+	ON public.votes
 	FOR EACH ROW
 EXECUTE PROCEDURE politicianScore();
-
-	 
