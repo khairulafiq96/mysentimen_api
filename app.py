@@ -23,7 +23,7 @@ def convertSentimen(sentimen):
 
 @app.after_request
 def handlerCORS(response):
-    if(request.method == 'GET' or request.method == 'OPTIONS' or request.method == 'POST'):
+    if(request.method == 'GET' or request.method == 'OPTIONS' or request.method == 'POST' or request.method == 'DELETE'):
         print("OK")
         #response = flask.Response()
         response.headers["Status Code"] = "200 OK"
@@ -68,6 +68,31 @@ def func_verifyUserDB():
             cursor.close()
             connection.close()
             print("Commection is closed")
+
+@app.route('/deleteUserDB', methods=['DELETE'])
+def func_deleteUserDB():
+    try :
+        connection, cursor  = initilizeConnection()
+        data = request.get_json()
+        print(data['userID'])
+        cursor.execute("DELETE FROM mysentimen.votes where userid = '%s';DELETE FROM mysentimen.users where id = '%s';"%(data['userID'], data['userID']))
+        connection.commit()
+        #print(type(response))
+        
+        print("User "+ data['userID'] + "account has been deleted")
+
+        return json.dumps({'user' :  'deleted'})
+        
+    except Exception as e:
+        return e
+    
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Commection is closed")
+
+
 
 @app.route('/liveVotes', methods=['GET', 'POST'])
 def liveComment():

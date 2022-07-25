@@ -30,3 +30,74 @@ CREATE TRIGGER set_politicianScore
 	ON public.votes
 	FOR EACH ROW
 EXECUTE PROCEDURE politicianScore();
+
+
+
+
+CREATE or REPLACE function politicianScore_deleteUser()
+	returns trigger
+	LANGUAGE PLPGSQL
+as $$
+
+declare
+	score numeric;
+
+begin
+	SELECT
+		(((SELECT count(*) from mysentimen.votes WHERE
+			sentimen = true AND politicianid = OLD.politicianid)*1.00-
+		(SELECT count(*) from mysentimen.votes WHERE
+			sentimen = false AND politicianid = OLD.politicianid)) /
+		(NULLIF((SELECT count(*) from mysentimen.votes WHERE politicianid = OLD.politicianid), 0))) as sentimen INTO score;
+	
+	UPDATE mysentimen.politicians
+	SET sentimen = score WHERE mysentimen.politicians.id = OLD.politicianid;
+
+	return OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS set_politicianScore_userdelete on mysentimen.votes;
+
+CREATE TRIGGER set_politicianScore_userdelete
+	BEFORE DELETE
+	ON mysentimen.votes
+	FOR EACH ROW
+EXECUTE PROCEDURE politicianScore_deleteUser();
+
+
+
+
+
+
+
+CREATE or REPLACE function politicianScore()
+	returns trigger
+	LANGUAGE PLPGSQL
+as $$
+
+declare
+	score numeric;
+
+begin
+	SELECT
+		(((SELECT count(*) from mysentimen.votes WHERE
+			sentimen = true AND politicianid = NEW.politicianid)*1.00-
+		(SELECT count(*) from mysentimen.votes WHERE
+			sentimen = false AND politicianid = NEW.politicianid)) /
+		(NULLIF((SELECT count(*) from mysentimen.votes WHERE politicianid = NEW.politicianid), 0))) as sentimen INTO score;
+	
+	UPDATE mysentimen.politicians
+	SET sentimen = score WHERE mysentimen.politicians.id = NEW.politicianid;
+
+	return NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS set_politicianScore on mysentimen.votes;
+
+CREATE TRIGGER set_politicianScore
+	AFTER INSERT
+	ON mysentimen.votes
+	FOR EACH ROW
+EXECUTE PROCEDURE politicianScore();
